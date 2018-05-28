@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <link rel="stylesheet" href="https://player.eyevinn.technology/v0.2.4/build/eyevinn-html-player.css">
+    <style>
+      body { background-color: black; }
+      #status { 
+        font-size: 20pt; 
+        font-family: Verdana; 
+        height: 40px; 
+        width: 100%; 
+        color: white; background-color: black; 
+        position: absolute; top: 0px; z-index: 10;
+      }
+      #webcam-canvas { display: none }
+      #webcam { width: 0px; height: 0px; }
+      .watching-yes { border: 3px solid green; }
+      .watching-no { border: none; }
+    </style>
+  </head>
+  <body>
+    <div id="status">Anyone watching? No</div>
+    <div id="player-wrapper" style="width: 1024px; height: 576px;"></div>
+    <video id="webcam"></video>
+    <canvas id="webcam-canvas"></canvas>
+    <script src="https://player.eyevinn.technology/v0.2.4/build/eyevinn-html-player.js" type="text/javascript"></script>
+    <script>
+      var userIsInFrontOfScreen = false;
+
+      // Enable experimental features in Chrome
+      // chrome://flags#enable-experimental-web-platform-features
+
+      // Check whether we have FaceDetector API available
+      if (window.FaceDetector !== undefined) {
+        // User must allow access to webcam
+        navigator.mediaDevices.getUserMedia({ video: true })
+        .then(function(stream) {
+          // Get video element for the webcam video stream
+          var webcamVideo = document.querySelector('#webcam');
+
+          // Get webcam canvas used for face detection
+          var webcamCanvas = document.querySelector('#webcam-canvas');
+          var canvasContext = webcamCanvas.getContext('2d');
+
+          // Attach webcam stream to video element
+          webcamVideo.src = URL.createObjectURL(stream);
+          webcamVideo.play();
+
+          // Create FaceDetector API
+          var faceDetector = new window.FaceDetector();
+
+          // Setup example player
+          setupEyevinnPlayer('player-wrapper', 'https://maitv-vod.lab.eyevinn.technology/VINN.mp4/master.m3u8')
+          .then(function(player) {
+            player.play(true);
+
+            // Detect face every 500 ms
+            setInterval(function() {
+              canvasContext.drawImage(webcamVideo, 0, 0, webcamCanvas.width, webcamCanvas.height);
+              faceDetector.detect(webcamCanvas).then(function(faces) {
+                if (faces.length > 0) {
+                  if (!userIsInFrontOfScreen) {
+                    userIsInFrontOfScreen = true;
+                    document.querySelector('#status').innerHTML = "Anyone watching? Yes";
+                    document.querySelector('#player-wrapper').className = 'watching-yes';
+                  }
+                } else {
+                  if (userIsInFrontOfScreen) {
+                    userIsInFrontOfScreen = false;
+                    document.querySelector('#status').innerHTML = "Anyone watching? No";
+                    document.querySelector('#player-wrapper').className = 'watching-no';
+                  }
+                }
+              });       
+            }, 500);
+          });
+        }).catch(function(err) {
+          console.error(err);
+        });
+
+      } else {
+        console.log("FaceDetector API was not found, enable experimental features chrome://flags#enable-experimental-web-platform-features")
+      }
+
+    </script>
+  </body>
+</html>
